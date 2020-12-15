@@ -6,40 +6,40 @@ namespace DinoDips
 {
     public static class InputTracker
     {
-        private static HashSet<Key> _currentlyPressedKeys = new HashSet<Key>();
-        private static HashSet<Key> _newKeysThisFrame = new HashSet<Key>();
+        private static HashSet<Key> CurrentlyPressedKeys = new HashSet<Key>();
+        private static HashSet<Key> NewKeysThisFrame = new HashSet<Key>();
 
-        private static HashSet<MouseButton> _currentlyPressedMouseButtons = new HashSet<MouseButton>();
-        private static HashSet<MouseButton> _newMouseButtonsThisFrame = new HashSet<MouseButton>();
+        private static HashSet<MouseButton> CurrentlyPressedMouseButtons = new HashSet<MouseButton>();
+        private static HashSet<MouseButton> NewMouseButtonsThisFrame = new HashSet<MouseButton>();
 
         public static Vector2 MousePosition;
         public static InputSnapshot FrameSnapshot { get; private set; }
 
         public static bool GetKey(Key key)
         {
-            return _currentlyPressedKeys.Contains(key);
+            return CurrentlyPressedKeys.Contains(key);
         }
 
         public static bool GetKeyDown(Key key)
         {
-            return _newKeysThisFrame.Contains(key);
+            return NewKeysThisFrame.Contains(key);
         }
 
         public static bool GetMouseButton(MouseButton button)
         {
-            return _currentlyPressedMouseButtons.Contains(button);
+            return CurrentlyPressedMouseButtons.Contains(button);
         }
 
         public static bool GetMouseButtonDown(MouseButton button)
         {
-            return _newMouseButtonsThisFrame.Contains(button);
+            return NewMouseButtonsThisFrame.Contains(button);
         }
 
         public static void UpdateFrameInput(InputSnapshot snapshot)
         {
             FrameSnapshot = snapshot;
-            _newKeysThisFrame.Clear();
-            _newMouseButtonsThisFrame.Clear();
+            NewKeysThisFrame.Clear();
+            NewMouseButtonsThisFrame.Clear();
 
             MousePosition = snapshot.MousePosition;
             for (int i = 0; i < snapshot.KeyEvents.Count; i++)
@@ -70,29 +70,29 @@ namespace DinoDips
 
         private static void MouseUp(MouseButton mouseButton)
         {
-            _currentlyPressedMouseButtons.Remove(mouseButton);
-            _newMouseButtonsThisFrame.Remove(mouseButton);
+            CurrentlyPressedMouseButtons.Remove(mouseButton);
+            NewMouseButtonsThisFrame.Remove(mouseButton);
         }
 
         private static void MouseDown(MouseButton mouseButton)
         {
-            if (_currentlyPressedMouseButtons.Add(mouseButton))
+            if (CurrentlyPressedMouseButtons.Add(mouseButton))
             {
-                _newMouseButtonsThisFrame.Add(mouseButton);
+                NewMouseButtonsThisFrame.Add(mouseButton);
             }
         }
 
         private static void KeyUp(Key key)
         {
-            _currentlyPressedKeys.Remove(key);
-            _newKeysThisFrame.Remove(key);
+            CurrentlyPressedKeys.Remove(key);
+            NewKeysThisFrame.Remove(key);
         }
 
         private static void KeyDown(Key key)
         {
-            if (_currentlyPressedKeys.Add(key))
+            if (CurrentlyPressedKeys.Add(key))
             {
-                _newKeysThisFrame.Add(key);
+                NewKeysThisFrame.Add(key);
             }
         }
     }

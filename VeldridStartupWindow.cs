@@ -9,10 +9,10 @@ namespace DinoDips
 {
     public class VeldridStartupWindow : IApplicationWindow
     {
-        private readonly Sdl2Window _window;
-        private GraphicsDevice _gd;
-        private DisposeCollectorResourceFactory _factory;
-        private bool _windowResized = true;
+        private readonly Sdl2Window Window;
+        private GraphicsDevice GD;
+        private DisposeCollectorResourceFactory Factory;
+        private bool WindowResized = true;
 
         public event Action<float, long> Rendering;
         public event Action<GraphicsDevice, ResourceFactory, Swapchain> GraphicsDeviceCreated;
@@ -20,8 +20,8 @@ namespace DinoDips
         public event Action Resized;
         public event Action<KeyEvent> KeyPressed;
 
-        public uint Width => (uint)_window.Width;
-        public uint Height => (uint)_window.Height;
+        public uint Width => (uint)Window.Width;
+        public uint Height => (uint)Window.Height;
 
         public VeldridStartupWindow(string title)
         {
@@ -33,12 +33,12 @@ namespace DinoDips
                 WindowHeight = 720,
                 WindowTitle = title,
             };
-            _window = VeldridStartup.CreateWindow(ref wci);
-            _window.Resized += () =>
+            Window = VeldridStartup.CreateWindow(ref wci);
+            Window.Resized += () =>
             {
-                _windowResized = true;
+                WindowResized = true;
             };
-            _window.KeyDown += OnKeyDown;
+            Window.KeyDown += OnKeyDown;
         }
 
         public void Run()
@@ -53,29 +53,29 @@ namespace DinoDips
 #if DEBUG
             options.Debug = true;
 #endif
-            _gd = VeldridStartup.CreateGraphicsDevice(_window, options, GraphicsBackend.Direct3D11);
-            _factory = new DisposeCollectorResourceFactory(_gd.ResourceFactory);
-            GraphicsDeviceCreated?.Invoke(_gd, _factory, _gd.MainSwapchain);
+            GD = VeldridStartup.CreateGraphicsDevice(Window, options, GraphicsBackend.Direct3D11);
+            Factory = new DisposeCollectorResourceFactory(GD.ResourceFactory);
+            GraphicsDeviceCreated?.Invoke(GD, Factory, GD.MainSwapchain);
 
             Stopwatch sw = Stopwatch.StartNew();
             double previousElapsed = sw.Elapsed.TotalSeconds;
             long ticks = 0;
 
-            while (_window.Exists)
+            while (Window.Exists)
             {
                 double newElapsed = sw.Elapsed.TotalSeconds;
                 float deltaSeconds = (float)(newElapsed - previousElapsed);
 
-                InputSnapshot inputSnapshot = _window.PumpEvents();
+                InputSnapshot inputSnapshot = Window.PumpEvents();
                 InputTracker.UpdateFrameInput(inputSnapshot);
 
-                if (_window.Exists)
+                if (Window.Exists)
                 {
                     previousElapsed = newElapsed;
-                    if (_windowResized)
+                    if (WindowResized)
                     {
-                        _windowResized = false;
-                        _gd.ResizeMainWindow((uint)_window.Width, (uint)_window.Height);
+                        WindowResized = false;
+                        GD.ResizeMainWindow((uint)Window.Width, (uint)Window.Height);
                         Resized?.Invoke();
                     }
 
@@ -83,9 +83,9 @@ namespace DinoDips
                 }
             }
 
-            _gd.WaitForIdle();
-            _factory.DisposeCollector.DisposeAll();
-            _gd.Dispose();
+            GD.WaitForIdle();
+            Factory.DisposeCollector.DisposeAll();
+            GD.Dispose();
             GraphicsDeviceDestroyed?.Invoke();
         }
 

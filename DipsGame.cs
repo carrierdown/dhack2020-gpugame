@@ -10,47 +10,48 @@ namespace DinoDips
 {
     public class DipsGame : SampleApplication
     {
-        private readonly VertexPositionTexture[] _vertices;
-        private readonly ushort[] _indices;
-        private DeviceBuffer _projectionBuffer;
-        private DeviceBuffer _viewBuffer;
-        private DeviceBuffer _worldBuffer;
-        private DeviceBuffer _vertexBuffer;
-        private DeviceBuffer _indexBuffer;
-        private CommandList _cl;
-        private Pipeline _pipeline;
-        private ResourceSet _projViewSet;
-        private ResourceSet _mainAvatarTextureSet;
-        private const float _startingPlayerVelocity = -24f;
-        private const float _energyLoss = 0.78f;
-        private const int _numJumpCycles = 62;
-        private const int _speedFactor = 6;
-        private long _playerJumping = -1;
-        private int[] _cactusPlacements = {1500, 2000, 2700, 3400};
-        private uint[] _cactusTypes = {0, 1, 0, 0, 2, 0, 1, 2, 0, 1, 0, 2, 0, 0};
-        private uint[] _indexStartMap = {6, 18, 24};
-        private const int _playerX = 50;
-        private long _prevTicks = 0;
+        private readonly VertexPositionTexture[] Vertices;
+        private readonly ushort[] Indices;
+        private DeviceBuffer ProjectionBuffer;
+        private DeviceBuffer ViewBuffer;
+        private DeviceBuffer WorldBuffer;
+        private DeviceBuffer VertexBuffer;
+        private DeviceBuffer IndexBuffer;
+        private CommandList CommandList;
+        private Pipeline Pipeline;
+        private ResourceSet ProjViewSet;
+        private ResourceSet MainAvatarTextureSet;
+        
+        private const float StartingPlayerVelocity = -24f;
+        private const float EnergyLoss = 0.78f;
+        private const int NumJumpCycles = 62;
+        private const int SpeedFactor = 6;
+        private long PlayerJumping = -1;
+        private readonly int[] CactusPlacements = {1500, 2000, 2700, 3400};
+        private readonly uint[] CactusTypes = {0, 1, 0, 0, 2, 0, 1, 2, 0, 1, 0, 2, 0, 0};
+        private readonly uint[] IndexStartMap = {6, 18, 24};
+        private const int PlayerX = 50;
+        private long PrevTicks = 0;
 
-        private bool death = false;
-        private int curDeathWaitTicks = 0;
-        private const int deathWaitTicks = 40;
+        private bool Death = false;
+        private int CurDeathWaitTicks = 0;
+        private const int DeathWaitTicks = 40;
 
-        private float _curPlayerVertPos = 320;
-        private float _playerVelocity = _startingPlayerVelocity;
+        private float CurPlayerVertPos = 320;
+        private float PlayerVelocity = StartingPlayerVelocity;
 
         public DipsGame(IApplicationWindow window) : base(window)
         {
-            _vertices = GetCubeVertices();
-            _indices = GetCubeIndices();
+            Vertices = GetSpriteVertices();
+            Indices = GetSpriteIndices();
         }
 
         protected override void OnKeyDown(KeyEvent keyEvent)
         {
             if (keyEvent.Key == Key.Up)
             {
-                if (_playerJumping < 0)
-                    _playerJumping = 0;
+                if (PlayerJumping < 0)
+                    PlayerJumping = 0;
             }
         }
 
@@ -71,19 +72,19 @@ namespace DinoDips
 
         protected override void CreateResources(ResourceFactory factory)
         {
-            _projectionBuffer = factory.CreateBuffer(new BufferDescription(64, BufferUsage.UniformBuffer));
-            _viewBuffer = factory.CreateBuffer(new BufferDescription(64, BufferUsage.UniformBuffer));
-            _worldBuffer = factory.CreateBuffer(new BufferDescription(64, BufferUsage.UniformBuffer));
+            ProjectionBuffer = factory.CreateBuffer(new BufferDescription(64, BufferUsage.UniformBuffer));
+            ViewBuffer = factory.CreateBuffer(new BufferDescription(64, BufferUsage.UniformBuffer));
+            WorldBuffer = factory.CreateBuffer(new BufferDescription(64, BufferUsage.UniformBuffer));
 
-            _vertexBuffer =
+            VertexBuffer =
                 factory.CreateBuffer(new BufferDescription(
-                    (uint) (VertexPositionTexture.SizeInBytes * _vertices.Length), BufferUsage.VertexBuffer));
-            GraphicsDevice.UpdateBuffer(_vertexBuffer, 0, _vertices);
+                    (uint) (VertexPositionTexture.SizeInBytes * Vertices.Length), BufferUsage.VertexBuffer));
+            GraphicsDevice.UpdateBuffer(VertexBuffer, 0, Vertices);
 
-            _indexBuffer =
-                factory.CreateBuffer(new BufferDescription(sizeof(ushort) * (uint) _indices.Length,
+            IndexBuffer =
+                factory.CreateBuffer(new BufferDescription(sizeof(ushort) * (uint) Indices.Length,
                     BufferUsage.IndexBuffer));
-            GraphicsDevice.UpdateBuffer(_indexBuffer, 0, _indices);
+            GraphicsDevice.UpdateBuffer(IndexBuffer, 0, Indices);
             Console.WriteLine(AppDomain.CurrentDomain.BaseDirectory);
             
             var mainAvatarTextureView =
@@ -119,7 +120,7 @@ namespace DinoDips
                     new ResourceLayoutElementDescription("SurfaceSampler", ResourceKind.Sampler,
                         ShaderStages.Fragment)));
 
-            _pipeline = factory.CreateGraphicsPipeline(new GraphicsPipelineDescription(
+            Pipeline = factory.CreateGraphicsPipeline(new GraphicsPipelineDescription(
                 BlendStateDescription.SingleAlphaBlend,
                 DepthStencilStateDescription.DepthOnlyLessEqual,
                 RasterizerStateDescription.Default,
@@ -128,51 +129,51 @@ namespace DinoDips
                 new[] {projViewLayout, worldTextureLayout},
                 MainSwapchain.Framebuffer.OutputDescription));
 
-            _projViewSet = factory.CreateResourceSet(new ResourceSetDescription(
+            ProjViewSet = factory.CreateResourceSet(new ResourceSetDescription(
                 projViewLayout,
-                _projectionBuffer,
-                _viewBuffer));
+                ProjectionBuffer,
+                ViewBuffer));
 
-            _mainAvatarTextureSet = factory.CreateResourceSet(new ResourceSetDescription(
+            MainAvatarTextureSet = factory.CreateResourceSet(new ResourceSetDescription(
                 worldTextureLayout,
-                _worldBuffer,
+                WorldBuffer,
                 mainAvatarTextureView,
                 GraphicsDevice.Aniso4xSampler));
 
-            _cl = factory.CreateCommandList();
+            CommandList = factory.CreateCommandList();
         }
 
         protected override void Draw(float deltaSeconds, long ticks)
         {
-            if (death && curDeathWaitTicks == deathWaitTicks)
+            if (Death && CurDeathWaitTicks == DeathWaitTicks)
             {
-                _prevTicks = ticks;
+                PrevTicks = ticks;
             }
 
-            if (death)
+            if (Death)
             {
-                curDeathWaitTicks--;
-                if (curDeathWaitTicks <= 0)
+                CurDeathWaitTicks--;
+                if (CurDeathWaitTicks <= 0)
                 {
-                    curDeathWaitTicks = -1;
-                    death = false;
-                    _prevTicks = ticks;
+                    CurDeathWaitTicks = -1;
+                    Death = false;
+                    PrevTicks = ticks;
                     ticks = 0;
                 }
                 else
                 {
-                    ticks = _prevTicks;
+                    ticks = PrevTicks;
                 }
             }
             else
             {
-                ticks -= _prevTicks;
+                ticks -= PrevTicks;
             }
 
-            _cl.Begin();
+            CommandList.Begin();
 
-            _cl.SetFramebuffer(GraphicsDevice.SwapchainFramebuffer);
-            _cl.UpdateBuffer(_projectionBuffer, 0, Matrix4x4.CreateOrthographicOffCenter(
+            CommandList.SetFramebuffer(GraphicsDevice.SwapchainFramebuffer);
+            CommandList.UpdateBuffer(ProjectionBuffer, 0, Matrix4x4.CreateOrthographicOffCenter(
                 0,
                 GraphicsDevice.SwapchainFramebuffer.Width,
                 GraphicsDevice.SwapchainFramebuffer.Height,
@@ -181,62 +182,62 @@ namespace DinoDips
                 1
             ));
             
-            _cl.UpdateBuffer(_viewBuffer, 0, Matrix4x4.CreateTranslation(Vector3.Zero));
+            CommandList.UpdateBuffer(ViewBuffer, 0, Matrix4x4.CreateTranslation(Vector3.Zero));
 
-            if (_playerJumping >= 0)
+            if (PlayerJumping >= 0)
             {
-                _curPlayerVertPos += _playerVelocity;
-                _playerVelocity += _energyLoss;
-                _playerJumping++;
+                CurPlayerVertPos += PlayerVelocity;
+                PlayerVelocity += EnergyLoss;
+                PlayerJumping++;
             }
 
-            if (_playerJumping > _numJumpCycles)
+            if (PlayerJumping > NumJumpCycles)
             {
-                _curPlayerVertPos = 320;
-                _playerJumping = -1;
-                _playerVelocity = _startingPlayerVelocity;
+                CurPlayerVertPos = 320;
+                PlayerJumping = -1;
+                PlayerVelocity = StartingPlayerVelocity;
             }
 
-            _cl.UpdateBuffer(_worldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(_playerX, _curPlayerVertPos, 0)));
+            CommandList.UpdateBuffer(WorldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(PlayerX, CurPlayerVertPos, 0)));
 
-            _cl.ClearColorTarget(0, RgbaFloat.White);
-            _cl.ClearDepthStencil(1f);
-            _cl.SetPipeline(_pipeline);
-            _cl.SetVertexBuffer(0, _vertexBuffer);
-            _cl.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            _cl.SetGraphicsResourceSet(0, _projViewSet);
-            _cl.SetGraphicsResourceSet(1, _mainAvatarTextureSet);
-            _cl.DrawIndexed(6, 1, 0, 0, 0);
-            var xCoord = (0 - (ticks * _speedFactor) % 2000);
-            _cl.UpdateBuffer(_worldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(xCoord, 150, 0)));
-            _cl.DrawIndexed(6, 1, 12, 0, 0);
-            xCoord = 2000 - ((ticks * _speedFactor) % 2000);
-            _cl.UpdateBuffer(_worldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(xCoord, 150, 0)));
-            _cl.DrawIndexed(6, 1, 12, 0, 0);
+            CommandList.ClearColorTarget(0, RgbaFloat.White);
+            CommandList.ClearDepthStencil(1f);
+            CommandList.SetPipeline(Pipeline);
+            CommandList.SetVertexBuffer(0, VertexBuffer);
+            CommandList.SetIndexBuffer(IndexBuffer, IndexFormat.UInt16);
+            CommandList.SetGraphicsResourceSet(0, ProjViewSet);
+            CommandList.SetGraphicsResourceSet(1, MainAvatarTextureSet);
+            CommandList.DrawIndexed(6, 1, 0, 0, 0);
+            var xCoord = (0 - (ticks * SpeedFactor) % 2000);
+            CommandList.UpdateBuffer(WorldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(xCoord, 150, 0)));
+            CommandList.DrawIndexed(6, 1, 12, 0, 0);
+            xCoord = 2000 - ((ticks * SpeedFactor) % 2000);
+            CommandList.UpdateBuffer(WorldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(xCoord, 150, 0)));
+            CommandList.DrawIndexed(6, 1, 12, 0, 0);
 
-            for (var i = 0; i < _cactusPlacements.Length; i++)
+            for (var i = 0; i < CactusPlacements.Length; i++)
             {
-                var cactusPlacement = _cactusPlacements[i];
-                var actualCactusPlacement = cactusPlacement - ((ticks * _speedFactor) % 3650);
-                if (actualCactusPlacement > 0 && actualCactusPlacement < 190 && _curPlayerVertPos > 200 && !death)
+                var cactusPlacement = CactusPlacements[i];
+                var actualCactusPlacement = cactusPlacement - ((ticks * SpeedFactor) % 3650);
+                if (actualCactusPlacement > 0 && actualCactusPlacement < 190 && CurPlayerVertPos > 200 && !Death)
                 {
-                    death = true;
-                    curDeathWaitTicks = deathWaitTicks;
+                    Death = true;
+                    CurDeathWaitTicks = DeathWaitTicks;
                     break;
                 }
 
-                _cl.UpdateBuffer(_worldBuffer, 0,
+                CommandList.UpdateBuffer(WorldBuffer, 0,
                     Matrix4x4.CreateTranslation(new Vector3(actualCactusPlacement, 300, 0)));
-                _cl.DrawIndexed(6, 1, _indexStartMap[_cactusTypes[i % _cactusTypes.Length]], 0, 0);
+                CommandList.DrawIndexed(6, 1, IndexStartMap[CactusTypes[i % CactusTypes.Length]], 0, 0);
             }
 
-            _cl.End();
-            if (!death) GraphicsDevice.SubmitCommands(_cl);
+            CommandList.End();
+            if (!Death) GraphicsDevice.SubmitCommands(CommandList);
             GraphicsDevice.SwapBuffers();
             GraphicsDevice.WaitForIdle();
         }
 
-        private static VertexPositionTexture[] GetCubeVertices()
+        private static VertexPositionTexture[] GetSpriteVertices()
         {
             VertexPositionTexture[] vertices = new[]
             {
@@ -244,10 +245,12 @@ namespace DinoDips
                 new VertexPositionTexture(new Vector3(200, 0, 0), new Vector2(.1f, 0)),
                 new VertexPositionTexture(new Vector3(200, 300, 0), new Vector2(.1f, .5f)),
                 new VertexPositionTexture(new Vector3(0, 300, 0), new Vector2(0, .5f)),
+                
                 new VertexPositionTexture(new Vector3(0, 0, 0), new Vector2(.1f, 0)),
                 new VertexPositionTexture(new Vector3(200, 0, 0), new Vector2(.2f, 0)),
                 new VertexPositionTexture(new Vector3(200, 300, 0), new Vector2(.2f, .5f)),
                 new VertexPositionTexture(new Vector3(0, 300, 0), new Vector2(.1f, .5f)),
+                
                 new VertexPositionTexture(new Vector3(0, 300, 0), new Vector2(0, .5f)),
                 new VertexPositionTexture(new Vector3(2000, 300, 0), new Vector2(1, .5f)),
                 new VertexPositionTexture(new Vector3(2000, 600, 0), new Vector2(1, 1)),
@@ -266,7 +269,7 @@ namespace DinoDips
             return vertices;
         }
 
-        private static ushort[] GetCubeIndices()
+        private static ushort[] GetSpriteIndices()
         {
             ushort[] indices =
             {
